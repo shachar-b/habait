@@ -1,0 +1,27 @@
+[Unit]
+Description=habait (הבית שלנו) Family Task & Routine Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=habait
+Group=habait
+WorkingDirectory=/opt/habait
+ExecStart=/usr/bin/node /opt/habait/packages/server/dist/index.js
+Restart=on-failure
+RestartSec=5
+Environment="NODE_ENV=production"
+Environment="TZ=Asia/Jerusalem"
+Environment="PORT=3000"
+Environment="HOST=0.0.0.0"
+Environment="DB_PATH=/var/lib/habait/habait.db"
+EnvironmentFile=/etc/habait/habait.env
+MemoryMax=256M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/habait
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,25 @@
+{
+  "name": "habait",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build -w @habait/shared && npm run build -w @habait/web && npm run build -w @habait/server",
+    "test": "vitest run",
+    "db:generate": "npm run db:generate -w @habait/server",
+    "db:seed": "npm run db:seed -w @habait/server"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

@@ -1,0 +1,1150 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "b741b9dc-597d-4abd-b08d-eec3d2c66303",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "app_settings": {
+      "name": "app_settings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "app_title": {
+          "name": "app_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'הבית שלנו'"
+        },
+        "announcement_text": {
+          "name": "announcement_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "announcement_emoji": {
+          "name": "announcement_emoji",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "announcement_updated_by": {
+          "name": "announcement_updated_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "app_settings_announcement_updated_by_users_id_fk": {
+          "name": "app_settings_announcement_updated_by_users_id_fk",
+          "tableFrom": "app_settings",
+          "tableTo": "users",
+          "columnsFrom": [
+            "announcement_updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "app_settings_singleton": {
+          "name": "app_settings_singleton",
+          "value": "\"app_settings\".\"id\" = 1"
+        }
+      }
+    },
+    "one_off_tasks": {
+      "name": "one_off_tasks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "assignee_id": {
+          "name": "assignee_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "icon_emoji": {
+          "name": "icon_emoji",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stars": {
+          "name": "stars",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "issued_date": {
+          "name": "issued_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "finished_date": {
+          "name": "finished_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "finished_at": {
+          "name": "finished_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "one_off_tasks_assignee_status_idx": {
+          "name": "one_off_tasks_assignee_status_idx",
+          "columns": [
+            "assignee_id",
+            "status"
+          ],
+          "isUnique": false
+        },
+        "one_off_tasks_finished_date_idx": {
+          "name": "one_off_tasks_finished_date_idx",
+          "columns": [
+            "finished_date"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "one_off_tasks_assignee_id_users_id_fk": {
+          "name": "one_off_tasks_assignee_id_users_id_fk",
+          "tableFrom": "one_off_tasks",
+          "tableTo": "users",
+          "columnsFrom": [
+            "assignee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "one_off_tasks_created_by_id_users_id_fk": {
+          "name": "one_off_tasks_created_by_id_users_id_fk",
+          "tableFrom": "one_off_tasks",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "one_off_tasks_stars_nonneg": {
+          "name": "one_off_tasks_stars_nonneg",
+          "value": "\"one_off_tasks\".\"stars\" >= 0"
+        },
+        "one_off_tasks_status_valid": {
+          "name": "one_off_tasks_status_valid",
+          "value": "\"one_off_tasks\".\"status\" IN ('PENDING', 'COMPLETED', 'CANCELED')"
+        }
+      }
+    },
+    "peer_requests": {
+      "name": "peer_requests",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "requester_id": {
+          "name": "requester_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "recipient_id": {
+          "name": "recipient_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "icon_emoji": {
+          "name": "icon_emoji",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'🤝'"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "issued_date": {
+          "name": "issued_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "finished_date": {
+          "name": "finished_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "finished_at": {
+          "name": "finished_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "peer_requests_recipient_status_idx": {
+          "name": "peer_requests_recipient_status_idx",
+          "columns": [
+            "recipient_id",
+            "status"
+          ],
+          "isUnique": false
+        },
+        "peer_requests_finished_date_idx": {
+          "name": "peer_requests_finished_date_idx",
+          "columns": [
+            "finished_date"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "peer_requests_requester_id_users_id_fk": {
+          "name": "peer_requests_requester_id_users_id_fk",
+          "tableFrom": "peer_requests",
+          "tableTo": "users",
+          "columnsFrom": [
+            "requester_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "peer_requests_recipient_id_users_id_fk": {
+          "name": "peer_requests_recipient_id_users_id_fk",
+          "tableFrom": "peer_requests",
+          "tableTo": "users",
+          "columnsFrom": [
+            "recipient_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "peer_requests_not_self": {
+          "name": "peer_requests_not_self",
+          "value": "\"peer_requests\".\"requester_id\" <> \"peer_requests\".\"recipient_id\""
+        },
+        "peer_requests_status_valid": {
+          "name": "peer_requests_status_valid",
+          "value": "\"peer_requests\".\"status\" IN ('PENDING', 'COMPLETED', 'DECLINED', 'CANCELED')"
+        }
+      }
+    },
+    "pool_task_executions": {
+      "name": "pool_task_executions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "pool_task_id": {
+          "name": "pool_task_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title_snapshot": {
+          "name": "title_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "icon_emoji_snapshot": {
+          "name": "icon_emoji_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stars_awarded": {
+          "name": "stars_awarded",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "logical_date": {
+          "name": "logical_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reverted_at": {
+          "name": "reverted_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "pool_task_executions_date_idx": {
+          "name": "pool_task_executions_date_idx",
+          "columns": [
+            "logical_date"
+          ],
+          "isUnique": false
+        },
+        "pool_task_executions_user_date_idx": {
+          "name": "pool_task_executions_user_date_idx",
+          "columns": [
+            "user_id",
+            "logical_date"
+          ],
+          "isUnique": false
+        },
+        "pool_task_executions_task_idx": {
+          "name": "pool_task_executions_task_idx",
+          "columns": [
+            "pool_task_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "pool_task_executions_pool_task_id_pool_tasks_id_fk": {
+          "name": "pool_task_executions_pool_task_id_pool_tasks_id_fk",
+          "tableFrom": "pool_task_executions",
+          "tableTo": "pool_tasks",
+          "columnsFrom": [
+            "pool_task_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "pool_task_executions_user_id_users_id_fk": {
+          "name": "pool_task_executions_user_id_users_id_fk",
+          "tableFrom": "pool_task_executions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "pool_task_executions_stars_nonneg": {
+          "name": "pool_task_executions_stars_nonneg",
+          "value": "\"pool_task_executions\".\"stars_awarded\" >= 0"
+        }
+      }
+    },
+    "pool_tasks": {
+      "name": "pool_tasks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "icon_emoji": {
+          "name": "icon_emoji",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stars": {
+          "name": "stars",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reset_mode": {
+          "name": "reset_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cooldown_minutes": {
+          "name": "cooldown_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 60
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'AVAILABLE'"
+        },
+        "claimed_by_user_id": {
+          "name": "claimed_by_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "claim_expires_at": {
+          "name": "claim_expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cooldown_ends_at": {
+          "name": "cooldown_ends_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_completed_at": {
+          "name": "last_completed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "pool_tasks_one_claim_per_user_uq": {
+          "name": "pool_tasks_one_claim_per_user_uq",
+          "columns": [
+            "claimed_by_user_id"
+          ],
+          "isUnique": true,
+          "where": "\"pool_tasks\".\"state\" = 'CLAIMED'"
+        },
+        "pool_tasks_active_state_idx": {
+          "name": "pool_tasks_active_state_idx",
+          "columns": [
+            "is_active",
+            "state"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "pool_tasks_claimed_by_user_id_users_id_fk": {
+          "name": "pool_tasks_claimed_by_user_id_users_id_fk",
+          "tableFrom": "pool_tasks",
+          "tableTo": "users",
+          "columnsFrom": [
+            "claimed_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "pool_tasks_created_by_id_users_id_fk": {
+          "name": "pool_tasks_created_by_id_users_id_fk",
+          "tableFrom": "pool_tasks",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "pool_tasks_stars_nonneg": {
+          "name": "pool_tasks_stars_nonneg",
+          "value": "\"pool_tasks\".\"stars\" >= 0"
+        },
+        "pool_tasks_cooldown_positive": {
+          "name": "pool_tasks_cooldown_positive",
+          "value": "\"pool_tasks\".\"cooldown_minutes\" > 0"
+        },
+        "pool_tasks_state_valid": {
+          "name": "pool_tasks_state_valid",
+          "value": "\"pool_tasks\".\"state\" IN ('AVAILABLE', 'CLAIMED', 'COOLDOWN')"
+        },
+        "pool_tasks_reset_mode_valid": {
+          "name": "pool_tasks_reset_mode_valid",
+          "value": "\"pool_tasks\".\"reset_mode\" IN ('COOLDOWN', 'AUTO_DISABLE')"
+        },
+        "pool_tasks_claim_consistent": {
+          "name": "pool_tasks_claim_consistent",
+          "value": "(\"pool_tasks\".\"state\" = 'CLAIMED') = (\"pool_tasks\".\"claimed_by_user_id\" IS NOT NULL AND \"pool_tasks\".\"claimed_at\" IS NOT NULL AND \"pool_tasks\".\"claim_expires_at\" IS NOT NULL)"
+        },
+        "pool_tasks_cooldown_consistent": {
+          "name": "pool_tasks_cooldown_consistent",
+          "value": "(\"pool_tasks\".\"state\" = 'COOLDOWN') = (\"pool_tasks\".\"cooldown_ends_at\" IS NOT NULL)"
+        }
+      }
+    },
+    "routine_daily_logs": {
+      "name": "routine_daily_logs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "routine_id": {
+          "name": "routine_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "assignee_id": {
+          "name": "assignee_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title_snapshot": {
+          "name": "title_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "icon_emoji_snapshot": {
+          "name": "icon_emoji_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "time_window_snapshot": {
+          "name": "time_window_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "logical_date": {
+          "name": "logical_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "routine_daily_logs_routine_date_uq": {
+          "name": "routine_daily_logs_routine_date_uq",
+          "columns": [
+            "routine_id",
+            "logical_date"
+          ],
+          "isUnique": true
+        },
+        "routine_daily_logs_date_idx": {
+          "name": "routine_daily_logs_date_idx",
+          "columns": [
+            "logical_date"
+          ],
+          "isUnique": false
+        },
+        "routine_daily_logs_assignee_date_idx": {
+          "name": "routine_daily_logs_assignee_date_idx",
+          "columns": [
+            "assignee_id",
+            "logical_date"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "routine_daily_logs_routine_id_routine_templates_id_fk": {
+          "name": "routine_daily_logs_routine_id_routine_templates_id_fk",
+          "tableFrom": "routine_daily_logs",
+          "tableTo": "routine_templates",
+          "columnsFrom": [
+            "routine_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "routine_daily_logs_assignee_id_users_id_fk": {
+          "name": "routine_daily_logs_assignee_id_users_id_fk",
+          "tableFrom": "routine_daily_logs",
+          "tableTo": "users",
+          "columnsFrom": [
+            "assignee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "routine_daily_logs_status_valid": {
+          "name": "routine_daily_logs_status_valid",
+          "value": "\"routine_daily_logs\".\"status\" IN ('COMPLETED', 'MISSED')"
+        },
+        "routine_daily_logs_completed_at": {
+          "name": "routine_daily_logs_completed_at",
+          "value": "(\"routine_daily_logs\".\"status\" = 'COMPLETED') = (\"routine_daily_logs\".\"completed_at\" IS NOT NULL)"
+        }
+      }
+    },
+    "routine_templates": {
+      "name": "routine_templates",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "assignee_id": {
+          "name": "assignee_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "icon_emoji": {
+          "name": "icon_emoji",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "time_window": {
+          "name": "time_window",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "days_of_week_json": {
+          "name": "days_of_week_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "routine_templates_assignee_idx": {
+          "name": "routine_templates_assignee_idx",
+          "columns": [
+            "assignee_id",
+            "is_active"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "routine_templates_assignee_id_users_id_fk": {
+          "name": "routine_templates_assignee_id_users_id_fk",
+          "tableFrom": "routine_templates",
+          "tableTo": "users",
+          "columnsFrom": [
+            "assignee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "routine_templates_created_by_users_id_fk": {
+          "name": "routine_templates_created_by_users_id_fk",
+          "tableFrom": "routine_templates",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "routine_templates_window_valid": {
+          "name": "routine_templates_window_valid",
+          "value": "\"routine_templates\".\"time_window\" IN ('MORNING', 'AFTERNOON', 'EVENING', 'ALL_DAY')"
+        },
+        "routine_templates_days_json": {
+          "name": "routine_templates_days_json",
+          "value": "json_valid(\"routine_templates\".\"days_of_week_json\")"
+        }
+      }
+    },
+    "star_transactions": {
+      "name": "star_transactions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_type": {
+          "name": "source_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "stars_delta": {
+          "name": "stars_delta",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "logical_date": {
+          "name": "logical_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "star_transactions_user_idx": {
+          "name": "star_transactions_user_idx",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        },
+        "star_transactions_user_date_idx": {
+          "name": "star_transactions_user_date_idx",
+          "columns": [
+            "user_id",
+            "logical_date"
+          ],
+          "isUnique": false
+        },
+        "star_transactions_date_idx": {
+          "name": "star_transactions_date_idx",
+          "columns": [
+            "logical_date"
+          ],
+          "isUnique": false
+        },
+        "star_transactions_created_at_idx": {
+          "name": "star_transactions_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "star_transactions_user_id_users_id_fk": {
+          "name": "star_transactions_user_id_users_id_fk",
+          "tableFrom": "star_transactions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "star_transactions_source_valid": {
+          "name": "star_transactions_source_valid",
+          "value": "\"star_transactions\".\"source_type\" IN ('ONE_OFF', 'POOL', 'REVERT', 'PARENT_ADJUSTMENT')"
+        },
+        "star_transactions_delta_nonzero": {
+          "name": "star_transactions_delta_nonzero",
+          "value": "\"star_transactions\".\"stars_delta\" <> 0"
+        }
+      }
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "avatar_emoji": {
+          "name": "avatar_emoji",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "avatar_bg_color": {
+          "name": "avatar_bg_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pin_hash": {
+          "name": "pin_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "users_active_sort_idx": {
+          "name": "users_active_sort_idx",
+          "columns": [
+            "is_active",
+            "sort_order"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "users_role_valid": {
+          "name": "users_role_valid",
+          "value": "\"users\".\"role\" IN ('PARENT', 'CHILD')"
+        },
+        "users_parent_has_pin": {
+          "name": "users_parent_has_pin",
+          "value": "\"users\".\"role\" <> 'PARENT' OR \"users\".\"pin_hash\" IS NOT NULL"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
