@@ -246,32 +246,20 @@ export function completeRoutine(
   });
 }
 
+/** `logId` is a `routine_daily_logs.id` (what `completedToday` / history expose), never a routine id. */
 export function revertRoutineCompletion(
   db: Db,
-  routineOrLogId: number,
+  logId: number,
   actor: Actor,
   now: number = Date.now(),
 ): RevertResponse {
   return db.transaction((tx) => {
     const today = getLogicalDateString(now);
-    let log = tx
+    const log = tx
       .select()
       .from(schema.routineDailyLogs)
-      .where(
-        and(
-          eq(schema.routineDailyLogs.routineId, routineOrLogId),
-          eq(schema.routineDailyLogs.logicalDate, today),
-        ),
-      )
+      .where(eq(schema.routineDailyLogs.id, logId))
       .get();
-
-    if (!log) {
-      log = tx
-        .select()
-        .from(schema.routineDailyLogs)
-        .where(eq(schema.routineDailyLogs.id, routineOrLogId))
-        .get();
-    }
 
     if (!log || log.status !== 'COMPLETED') {
       throw new DomainError('REVERT_NOT_ALLOWED', 'לא נמצאה השלמה לביטול');

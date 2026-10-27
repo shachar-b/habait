@@ -85,9 +85,10 @@ describe('task.service — Routines (0 stars) & Revert', () => {
     expect(dash.totalStars).toBe(0);
 
     // Revert restores the routine to open MORNING list
+    if (res.item.kind !== 'ROUTINE') throw new Error('expected routine item');
     const rev = revertRoutineCompletion(
       handle.db,
-      routine.id,
+      res.item.log.id,
       { userId: child1.id, role: 'CHILD' },
       NOW,
     );
@@ -95,6 +96,25 @@ describe('task.service — Routines (0 stars) & Revert', () => {
     dash = getUserDashboard(handle.db, child1.id, NOW);
     expect(dash.routines.MORNING).toHaveLength(1);
     expect(dash.completedToday).toHaveLength(0);
+  });
+
+  it('reverts exactly the log whose id is given, even when it collides with another routine id', () => {
+    const { parent, child1 } = seedFamily();
+    const input = { assigneeId: child1.id, iconEmoji: '🪥', timeWindow: 'MORNING' as const, daysOfWeek: [0] };
+    const routineA = createRoutineTemplate(handle.db, { ...input, title: 'A' }, parent.id, NOW);
+    const routineB = createRoutineTemplate(handle.db, { ...input, title: 'B' }, parent.id, NOW);
+    const actor = { userId: child1.id, role: 'CHILD' } as const;
+
+    // Complete B first so B's log id === routineA.id (the web sends log ids from `completedToday`).
+    const logB = completeRoutine(handle.db, routineB.id, actor, NOW).item;
+    completeRoutine(handle.db, routineA.id, actor, NOW);
+    if (logB.kind !== 'ROUTINE') throw new Error('expected routine item');
+    expect(logB.log.id).toBe(routineA.id);
+
+    revertRoutineCompletion(handle.db, logB.log.id, actor, NOW);
+
+    const dash = getUserDashboard(handle.db, child1.id, NOW);
+    expect(dash.routines.MORNING.map((r) => r.id)).toEqual([routineB.id]);
   });
 });
 

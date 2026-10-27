@@ -118,10 +118,10 @@ describe('Fastify API /api/v1 integration suite', () => {
     expect(compRoutine.statusCode).toBe(200);
     expect(compRoutine.json().starsAwarded).toBe(0);
 
-    // Revert routine
+    // Revert routine (by its log id)
     const revRoutine = await app.inject({
       method: 'POST',
-      url: `/api/v1/routines/${firstRoutine.id}/revert`,
+      url: `/api/v1/routines/${compRoutine.json().item.log.id}/revert`,
       headers: { cookie },
     });
     expect(revRoutine.statusCode).toBe(200);

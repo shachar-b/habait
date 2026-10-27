@@ -281,3 +281,24 @@ describe('user.service — lobby summary & settings', () => {
     expect(getAppSettings(handle.db, NOW).appTitle).toBe('משפחת כהן');
   });
 });
+
+describe('user.service - PIN brute-force throttling', () => {
+  it('locks a profile after 5 wrong PINs, rejects even the right PIN while locked, then unlocks', () => {
+    const parent = createUser(
+      handle.db,
+      { name: 'אבא', avatarEmoji: '🧔', avatarBgColor: 'bg-sky-200', role: 'PARENT', pin: '1234' },
+      NOW,
+    );
+    for (let i = 0; i < 5; i++) {
+      expect(() => authenticateUser(handle.db, { userId: parent.id, pin: '0000' }, NOW)).toThrowError(
+        expect.objectContaining({ code: 'INVALID_PIN' }),
+      );
+    }
+    expect(() => authenticateUser(handle.db, { userId: parent.id, pin: '1234' }, NOW + 1_000)).toThrowError(
+      expect.objectContaining({ code: 'TOO_MANY_ATTEMPTS', statusCode: 429 }),
+    );
+    expect(authenticateUser(handle.db, { userId: parent.id, pin: '1234' }, NOW + 5 * 60_000).user.id).toBe(
+      parent.id,
+    );
+  });
+});

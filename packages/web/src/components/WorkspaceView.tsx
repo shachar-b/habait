@@ -245,7 +245,7 @@ export function WorkspaceView({
           type="button"
           onClick={() => setActiveTab('myDay')}
           data-testid="tab-myDay"
-          className={`min-h-12 flex-1 rounded-2xl px-4 py-2.5 text-base font-bold ${
+          className={`min-h-12 flex-1 rounded-2xl px-2 py-2.5 text-center text-sm font-bold sm:px-4 sm:text-base ${
             activeTab === 'myDay'
               ? 'bg-stone-900 text-white shadow-xs'
               : 'text-stone-700'
@@ -257,7 +257,7 @@ export function WorkspaceView({
           type="button"
           onClick={() => setActiveTab('pool')}
           data-testid="tab-pool"
-          className={`min-h-12 flex-1 rounded-2xl px-4 py-2.5 text-base font-bold ${
+          className={`min-h-12 flex-1 rounded-2xl px-2 py-2.5 text-center text-sm font-bold sm:px-4 sm:text-base ${
             activeTab === 'pool'
               ? 'bg-stone-900 text-white shadow-xs'
               : 'text-stone-700'
@@ -269,7 +269,7 @@ export function WorkspaceView({
           type="button"
           onClick={() => setActiveTab('history')}
           data-testid="tab-history"
-          className={`min-h-12 flex-1 rounded-2xl px-4 py-2.5 text-base font-bold ${
+          className={`min-h-12 flex-1 rounded-2xl px-2 py-2.5 text-center text-sm font-bold sm:px-4 sm:text-base ${
             activeTab === 'history'
               ? 'bg-stone-900 text-white shadow-xs'
               : 'text-stone-700'

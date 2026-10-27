@@ -201,6 +201,11 @@ export function updateUser(db: Db, userId: number, input: UpdateUserRequest): Us
   return toUserDto(updated);
 }
 
+const MAX_PIN_FAILURES = 5;
+const PIN_LOCKOUT_MS = 5 * 60_000;
+// shortcut: in-memory per process (resets on restart), fine for one LXC process; persist if we ever run >1 instance.
+const pinFailures = new WeakMap<Db, Map<number, { count: number; lockedUntil: number }>>();
+
 export function authenticateUser(
   db: Db,
   input: LoginRequest,
@@ -211,9 +216,22 @@ export function authenticateUser(
     throw new DomainError('NOT_FOUND', 'User not found or inactive');
   }
   if (row.pinHash !== null) {
+    let failures = pinFailures.get(db);
+    if (!failures) pinFailures.set(db, (failures = new Map()));
+    const entry = failures.get(row.id) ?? { count: 0, lockedUntil: 0 };
+    if (now < entry.lockedUntil) {
+      throw new DomainError('TOO_MANY_ATTEMPTS', 'יותר מדי ניסיונות — נסו שוב בעוד כמה דקות');
+    }
     if (!input.pin || !verifyPin(input.pin, row.pinHash)) {
+      entry.count += 1;
+      if (entry.count >= MAX_PIN_FAILURES) {
+        entry.count = 0;
+        entry.lockedUntil = now + PIN_LOCKOUT_MS;
+      }
+      failures.set(row.id, entry);
       throw new DomainError('INVALID_PIN', 'קוד סודי שגוי');
     }
+    failures.delete(row.id);
   }
   const user = toUserDto(row);
   const token = signSessionToken({ userId: user.id, role: user.role, issuedAt: now });

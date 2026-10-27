@@ -114,7 +114,7 @@ export function App() {
   if (route.view === 'history') {
     return (
       <div className="mx-auto max-w-5xl px-4 py-6">
-        <header className="mb-6 flex items-center justify-between rounded-3xl border border-stone-200 bg-white p-5 shadow-xs">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-stone-200 bg-white p-5 shadow-xs">
           <h1 className="text-2xl font-bold text-stone-900 sm:text-3xl">
             📅 {HEBREW_COPY.nav.history} — {lobby.appSettings.appTitle}
           </h1>

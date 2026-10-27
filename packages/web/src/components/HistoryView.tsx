@@ -62,12 +62,12 @@ export function HistoryView({ initialDate, isParent = false, onRevertChange }: H
     <div className="space-y-6" data-testid="history-view">
       {/* Date Navigator & Star Period Switcher */}
       <div className="flex flex-col justify-between gap-4 rounded-3xl border border-stone-200 bg-white p-5 shadow-xs sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start sm:gap-3">
           <button
             type="button"
             onClick={() => stepDate(-1)}
             data-testid="history-prev-day"
-            className="flex min-h-12 min-w-12 items-center justify-center rounded-2xl border border-stone-200 bg-stone-100 px-3 text-lg font-bold text-stone-800"
+            className="flex min-h-12 min-w-12 items-center justify-center rounded-2xl border border-stone-200 bg-stone-100 px-3 text-base font-bold text-stone-800 sm:text-lg"
             aria-label="יום קודם"
           >
             → יום קודם
@@ -79,13 +79,13 @@ export function HistoryView({ initialDate, isParent = false, onRevertChange }: H
               if (e.target.value) setDate(e.target.value);
             }}
             data-testid="history-date-input"
-            className="min-h-12 rounded-2xl border border-stone-300 bg-[#FAF6EE] px-4 py-2 text-lg font-bold text-stone-900"
+            className="min-h-12 rounded-2xl border border-stone-300 bg-[#FAF6EE] px-3 py-2 text-base font-bold text-stone-900 sm:px-4 sm:text-lg"
           />
           <button
             type="button"
             onClick={() => stepDate(1)}
             data-testid="history-next-day"
-            className="flex min-h-12 min-w-12 items-center justify-center rounded-2xl border border-stone-200 bg-stone-100 px-3 text-lg font-bold text-stone-800"
+            className="flex min-h-12 min-w-12 items-center justify-center rounded-2xl border border-stone-200 bg-stone-100 px-3 text-base font-bold text-stone-800 sm:text-lg"
             aria-label="יום הבא"
           >
             יום הבא ←
@@ -93,14 +93,14 @@ export function HistoryView({ initialDate, isParent = false, onRevertChange }: H
         </div>
 
         {/* Star Analytics Period Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-[#F3ECE0] p-1.5">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-2xl bg-[#F3ECE0] p-1.5 sm:justify-start">
           {PERIOD_TABS.map((t) => (
             <button
               key={t.key}
               type="button"
               onClick={() => setSelectedPeriod(t.key)}
               data-testid={`star-period-${t.key}`}
-              className={`min-h-10 rounded-xl px-3 py-1.5 text-sm font-bold ${
+              className={`min-h-12 min-w-12 rounded-xl px-3 py-1.5 text-sm font-bold ${
                 selectedPeriod === t.key
                   ? 'bg-amber-500 text-white shadow-xs'
                   : 'text-stone-700'
@@ -164,7 +164,7 @@ export function HistoryView({ initialDate, isParent = false, onRevertChange }: H
                         <button
                           type="button"
                           onClick={() => void handleParentRevert('ROUTINE', r.id)}
-                          className="min-h-10 rounded-xl border border-stone-300 bg-white px-2.5 py-1 text-xs font-bold text-stone-700"
+                          className="min-h-12 min-w-12 rounded-xl border border-stone-300 bg-white px-2.5 py-1 text-xs font-bold text-stone-700"
                         >
                           {HEBREW_COPY.actions.undo}
                         </button>
@@ -207,7 +207,7 @@ export function HistoryView({ initialDate, isParent = false, onRevertChange }: H
                         <button
                           type="button"
                           onClick={() => void handleParentRevert('ONE_OFF', t.id)}
-                          className="min-h-10 rounded-xl border border-stone-300 bg-white px-2.5 py-1 text-xs font-bold text-stone-700"
+                          className="min-h-12 min-w-12 rounded-xl border border-stone-300 bg-white px-2.5 py-1 text-xs font-bold text-stone-700"
                         >
                           {HEBREW_COPY.actions.undo}
                         </button>
@@ -234,7 +234,7 @@ export function HistoryView({ initialDate, isParent = false, onRevertChange }: H
                         <button
                           type="button"
                           onClick={() => void handleParentRevert('POOL', pe.id)}
-                          className="min-h-10 rounded-xl border border-stone-300 bg-white px-2.5 py-1 text-xs font-bold text-stone-700"
+                          className="min-h-12 min-w-12 rounded-xl border border-stone-300 bg-white px-2.5 py-1 text-xs font-bold text-stone-700"
                         >
                           {HEBREW_COPY.actions.undo}
                         </button>

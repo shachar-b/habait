@@ -96,8 +96,8 @@ export const api = {
       method: 'POST',
     }),
 
-  revertRoutine: (routineOrLogId: number) =>
-    request<RevertResponse>(`/api/v1/routines/${routineOrLogId}/revert`, {
+  revertRoutine: (logId: number) =>
+    request<RevertResponse>(`/api/v1/routines/${logId}/revert`, {
       method: 'POST',
     }),
 

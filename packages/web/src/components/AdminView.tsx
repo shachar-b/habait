@@ -483,7 +483,7 @@ export function AdminView({ appSettings, onChanged }: AdminViewProps) {
                   <button
                     type="button"
                     onClick={() => void handleCancelOneOff(t.id)}
-                    className="min-h-10 rounded-xl border border-rose-300 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-800"
+                    className="min-h-12 min-w-12 rounded-xl border border-rose-300 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-800"
                   >
                     ביטול משימה
                   </button>
@@ -537,7 +537,7 @@ export function AdminView({ appSettings, onChanged }: AdminViewProps) {
             </select>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <span className="me-2 text-xs font-bold text-stone-600">ימים בשבוע:</span>
               {DAY_LABELS.map((dl) => {
                 const active = routineDays.includes(dl.day);
@@ -546,7 +546,7 @@ export function AdminView({ appSettings, onChanged }: AdminViewProps) {
                     key={dl.day}
                     type="button"
                     onClick={() => toggleRoutineDay(dl.day)}
-                    className={`min-h-10 min-w-10 rounded-xl text-sm font-bold ${
+                    className={`min-h-12 min-w-12 rounded-xl text-sm font-bold ${
                       active
                         ? 'bg-amber-500 text-white'
                         : 'border border-stone-300 bg-[#FAF6EE] text-stone-600'
@@ -586,7 +586,7 @@ export function AdminView({ appSettings, onChanged }: AdminViewProps) {
                 <button
                   type="button"
                   onClick={() => void handleToggleRoutineActive(r)}
-                  className={`min-h-10 rounded-xl px-3 py-1 text-xs font-bold ${
+                  className={`min-h-12 min-w-12 rounded-xl px-3 py-1 text-xs font-bold ${
                     r.isActive
                       ? 'bg-emerald-600 text-white'
                       : 'border border-stone-300 bg-white text-stone-600'
@@ -626,7 +626,7 @@ export function AdminView({ appSettings, onChanged }: AdminViewProps) {
                 <button
                   type="button"
                   onClick={() => void handleRemoveChildPin(u.id)}
-                  className="min-h-10 rounded-xl border border-stone-300 bg-white px-3 py-1 text-xs font-bold text-stone-700"
+                  className="min-h-12 min-w-12 rounded-xl border border-stone-300 bg-white px-3 py-1 text-xs font-bold text-stone-700"
                 >
                   הסר קוד
                 </button>

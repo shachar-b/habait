@@ -254,4 +254,95 @@ test.describe('habait E2E Suite (Flows 1–5)', () => {
     );
     await expect(page.getByTestId('lobby-announcement-emoji')).toHaveText('🍕');
   });
+
+  test('Flow 6 (iPhone Display & Ergonomics): verifies zero horizontal overflow, modal centering, and >=48x48px touch targets across all screens on iPhone (375x667)', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+
+    const assertIphoneLayout = async (screenLabel: string) => {
+      const issues = await page.evaluate(() => {
+        const vw = window.innerWidth;
+        const docScrollW = document.documentElement.scrollWidth;
+        const overflow = docScrollW > vw ? `scrollWidth ${docScrollW} > innerWidth ${vw}` : null;
+
+        const smallButtons: string[] = [];
+        for (const btn of Array.from(document.querySelectorAll('button'))) {
+          const style = window.getComputedStyle(btn);
+          if (style.display === 'none' || style.visibility === 'hidden') continue;
+          const r = btn.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) continue;
+          if (btn.offsetHeight < 48 || btn.offsetWidth < 48) {
+            smallButtons.push(
+              `${btn.getAttribute('data-testid') ?? btn.textContent?.trim().slice(0, 20) ?? 'btn'}(${btn.offsetWidth}x${btn.offsetHeight})`,
+            );
+          }
+          if (r.left < -1 || r.right > vw + 1) {
+            smallButtons.push(
+              `offscreen:${btn.getAttribute('data-testid') ?? btn.textContent?.trim().slice(0, 20)}(left=${Math.round(r.left)},right=${Math.round(r.right)})`,
+            );
+          }
+        }
+        return { overflow, smallButtons };
+      });
+      expect(issues.overflow, `${screenLabel} horizontal overflow`).toBeNull();
+      expect(issues.smallButtons, `${screenLabel} button ergonomics`).toEqual([]);
+    };
+
+    // 1. Lobby screen on iPhone
+    await page.goto(BASE_URL);
+    await expect(page.getByTestId('lobby-screen')).toBeVisible();
+    await assertIphoneLayout('Lobby');
+
+    // 2. PIN Modal centered on iPhone
+    await page.getByTestId('profile-card-1').click();
+    await expect(page.getByTestId('pin-modal')).toBeVisible();
+    await assertIphoneLayout('PIN Modal');
+    const pinModalCentered = await page.evaluate(() => {
+      const dialog = document.querySelector('[data-testid="pin-modal"] > div');
+      if (!dialog) return false;
+      const r = dialog.getBoundingClientRect();
+      return Math.abs(r.left - (window.innerWidth - r.right)) <= 2;
+    });
+    expect(pinModalCentered).toBe(true);
+
+    // Log in as Parent (Ima, id=1)
+    for (const d of ['1', '2', '3', '4']) {
+      await page.getByTestId(`pin-key-${d}`).click();
+    }
+    await expect(page.getByTestId('workspace-view')).toBeVisible();
+
+    // 3. Pool tab & claim task to test hero card on My Day
+    await page.getByTestId('tab-pool').click();
+    await expect(page.getByTestId('pool-tab-content')).toBeVisible();
+    await assertIphoneLayout('Pool Tab');
+    await page.getByTestId('claim-pool-btn-2').click();
+
+    // 4. My Day tab with active claim hero card + Peer Request Modal centering
+    await page.getByTestId('tab-myDay').click();
+    await expect(page.getByTestId('active-claim-hero')).toBeVisible();
+    await assertIphoneLayout('My Day Tab');
+
+    await page.getByTestId('open-request-help-btn').click();
+    await expect(page.getByTestId('peer-request-modal')).toBeVisible();
+    await assertIphoneLayout('Peer Request Modal');
+    const peerModalCentered = await page.evaluate(() => {
+      const form = document.querySelector('[data-testid="peer-request-modal"] > form');
+      if (!form) return false;
+      const r = form.getBoundingClientRect();
+      return Math.abs(r.left - (window.innerWidth - r.right)) <= 2;
+    });
+    expect(peerModalCentered).toBe(true);
+    await page.getByTestId('peer-request-modal').getByRole('button', { name: 'ביטול' }).click();
+
+    // 5. History tab on iPhone
+    await page.getByTestId('tab-history').click();
+    await expect(page.getByTestId('history-view')).toBeVisible();
+    await assertIphoneLayout('History Tab');
+
+    // 6. Parent Admin tab on iPhone
+    await page.getByTestId('tab-admin').click();
+    await expect(page.getByTestId('admin-view')).toBeVisible();
+    await assertIphoneLayout('Admin Tab');
+  });
 });
