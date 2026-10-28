@@ -23,6 +23,7 @@ import type {
   SettingsResponse,
   StarsSummaryResponse,
   UpdateOneOffRequest,
+  UpdateOwnProfileRequest,
   UpdatePoolTaskRequest,
   UpdateRoutineRequest,
   UpdateSettingsRequest,
@@ -87,6 +88,12 @@ export const api = {
     }),
 
   getMe: () => request<{ user: User | null }>('/api/v1/auth/me'),
+
+  updateOwnProfile: (payload: UpdateOwnProfileRequest) =>
+    request<UserResponse>('/api/v1/users/me/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
 
   getDashboard: (userId: number) =>
     request<DashboardResponse>(`/api/v1/users/${userId}/dashboard`),
@@ -183,6 +190,11 @@ export const api = {
     request<UserResponse>(`/api/v1/admin/users/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
+    }),
+
+  adminDeleteUser: (id: number) =>
+    request<{ ok: boolean }>(`/api/v1/admin/users/${id}`, {
+      method: 'DELETE',
     }),
 
   adminGetRoutines: () => request<RoutineListResponse>('/api/v1/admin/routines'),

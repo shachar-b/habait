@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   CreateUserRequestSchema,
+  EmojiSchema,
   ERROR_HTTP_STATUS,
+  getDisplayName,
   LogicalDateSchema,
+  NicknameSchema,
   PoolTaskSchema,
+  UpdateOwnProfileRequestSchema,
   UpdateUserRequestSchema,
 } from '../src/index.js';
 
@@ -75,5 +79,45 @@ describe('PoolTaskSchema (state-discriminated)', () => {
 describe('ERROR_HTTP_STATUS', () => {
   it('maps the 1-WIP violation to 409', () => {
     expect(ERROR_HTTP_STATUS.POOL_WIP_LIMIT_REACHED).toBe(409);
+  });
+});
+
+describe('EmojiSchema (single emoji grapheme)', () => {
+  it('accepts single simple and compound ZWJ emojis', () => {
+    for (const emoji of ['🦄', '🦸‍♀️', '🧑‍🚀', '🏳️‍🌈', '1️⃣']) {
+      expect(EmojiSchema.safeParse(emoji).success).toBe(true);
+    }
+  });
+
+  it('rejects plain text or multiple emojis', () => {
+    for (const bad of ['', 'a', 'א', 'שלום', '🦄🦁', '12']) {
+      expect(EmojiSchema.safeParse(bad).success).toBe(false);
+    }
+  });
+});
+
+describe('NicknameSchema & UpdateOwnProfileRequestSchema', () => {
+  it('normalizes empty or whitespace-only nickname to null', () => {
+    expect(NicknameSchema.parse('')).toBeNull();
+    expect(NicknameSchema.parse('   ')).toBeNull();
+    expect(NicknameSchema.parse(' שוער העל ')).toBe('שוער העל');
+  });
+
+  it('accepts valid self-service profile fields and rejects empty object', () => {
+    expect(
+      UpdateOwnProfileRequestSchema.safeParse({
+        nickname: 'נועה המלכה',
+        avatarEmoji: '👑',
+        avatarBgColor: 'bg-amber-200',
+        pin: '4321',
+      }).success,
+    ).toBe(true);
+    expect(UpdateOwnProfileRequestSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('getDisplayName prefers non-empty nickname and falls back to name', () => {
+    expect(getDisplayName({ name: 'נועה', nickname: 'נועה המלכה' })).toBe('נועה המלכה');
+    expect(getDisplayName({ name: 'נועה', nickname: null })).toBe('נועה');
+    expect(getDisplayName({ name: 'נועה', nickname: '  ' })).toBe('נועה');
   });
 });

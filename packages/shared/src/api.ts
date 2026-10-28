@@ -6,6 +6,7 @@ import {
   EmojiSchema,
   IdSchema,
   LogicalDateSchema,
+  NicknameSchema,
   OneOffTaskSchema,
   PeerRequestSchema,
   PinSchema,
@@ -41,6 +42,7 @@ import {
 export const LobbyProfileSchema = z.object({
   id: IdSchema,
   name: z.string(),
+  nickname: z.string().nullable(),
   avatarEmoji: z.string(),
   avatarBgColor: z.string(),
   role: UserRoleSchema,
@@ -226,10 +228,26 @@ export type SettingsResponse = z.infer<typeof SettingsResponseSchema>;
 
 const UserFieldsSchema = z.object({
   name: TitleSchema,
+  nickname: NicknameSchema.optional(),
   avatarEmoji: EmojiSchema,
   avatarBgColor: z.string().trim().min(1).max(40),
   sortOrder: z.number().int().optional(),
 });
+
+/**
+ * PATCH /users/me/profile — Self-service profile update for any logged-in user.
+ * Strictly omits `name`, `role`, and `isActive` so children cannot alter parent-only fields.
+ */
+export const UpdateOwnProfileRequestSchema = z
+  .object({
+    nickname: NicknameSchema,
+    avatarEmoji: EmojiSchema,
+    avatarBgColor: z.string().trim().min(1).max(40),
+    pin: PinSchema.nullable(),
+  })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, 'At least one field is required');
+export type UpdateOwnProfileRequest = z.infer<typeof UpdateOwnProfileRequestSchema>;
 
 /**
  * POST /admin/users — PIN is mandatory for PARENT, optional for CHILD.

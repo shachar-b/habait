@@ -34,7 +34,31 @@ export const LogicalDateSchema = z
 export const PinSchema = z.string().regex(/^\d{4}$/, 'PIN must be exactly 4 digits');
 
 export const TitleSchema = z.string().trim().min(1).max(120);
-export const EmojiSchema = z.string().trim().min(1).max(16);
+
+const graphemeSegmenter = new Intl.Segmenter('he', { granularity: 'grapheme' });
+const EMOJI_GRAPHEME_RE =
+  /(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Regional_Indicator}|\u20E3)/u;
+
+export const EmojiSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(16)
+  .refine((val) => {
+    const segments = Array.from(graphemeSegmenter.segment(val));
+    return segments.length === 1 && EMOJI_GRAPHEME_RE.test(val);
+  }, 'Must be a single emoji');
+
+export const NicknameSchema = z.preprocess(
+  (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
+  z.string().trim().min(1).max(40).nullable(),
+);
+
+export function getDisplayName(user: { name: string; nickname?: string | null }): string {
+  const trimmed = user.nickname?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : user.name;
+}
+
 export const StarsSchema = z.number().int().min(0).max(1000);
 export const DaysOfWeekSchema = z
   .array(DayOfWeekSchema)
@@ -57,6 +81,7 @@ export type AppSettings = z.infer<typeof AppSettingsSchema>;
 export const UserSchema = z.object({
   id: IdSchema,
   name: z.string(),
+  nickname: z.string().nullable(),
   avatarEmoji: z.string(),
   avatarBgColor: z.string(),
   role: UserRoleSchema,

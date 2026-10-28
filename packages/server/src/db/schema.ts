@@ -62,6 +62,7 @@ export const users = sqliteTable(
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
     name: text('name').notNull(),
+    nickname: text('nickname'),
     avatarEmoji: text('avatar_emoji').notNull(),
     avatarBgColor: text('avatar_bg_color').notNull(),
     role: text('role', { enum: USER_ROLES }).notNull(),

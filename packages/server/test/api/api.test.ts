@@ -321,6 +321,141 @@ describe('Fastify API /api/v1 integration suite', () => {
     expect((await adminGet(p1Cookie)).statusCode).toBe(401);
   });
 
+  it('supports PATCH /api/v1/users/me/profile for self-service nickname, custom emoji, color, and PIN', async () => {
+    const lobby = (await app.inject({ method: 'GET', url: '/api/v1/lobby' })).json();
+    const child = lobby.profiles.find((p: { role: string; hasPin: boolean }) => p.role === 'CHILD' && !p.hasPin);
+    const parent = lobby.profiles.find((p: { role: string }) => p.role === 'PARENT');
+
+    const childLogin = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { userId: child.id },
+    });
+    const childCookie = extractSessionCookie(childLogin.headers);
+
+    // Child updates own nickname, custom ZWJ emoji, color, and sets a 4-digit PIN
+    const updateSelf = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/users/me/profile',
+      headers: { cookie: childCookie },
+      payload: {
+        nickname: 'נועה הכוכבת',
+        avatarEmoji: '🦸‍♀️',
+        avatarBgColor: 'bg-violet-200',
+        pin: '4321',
+        // Extra fields like name/role must be ignored by Zod schema
+        name: 'שם פרוץ',
+        role: 'PARENT',
+      },
+    });
+    expect(updateSelf.statusCode).toBe(200);
+    const updatedUser = updateSelf.json().user;
+    expect(updatedUser.name).toBe(child.name);
+    expect(updatedUser.role).toBe('CHILD');
+    expect(updatedUser.nickname).toBe('נועה הכוכבת');
+    expect(updatedUser.avatarEmoji).toBe('🦸‍♀️');
+    expect(updatedUser.avatarBgColor).toBe('bg-violet-200');
+    expect(updatedUser.hasPin).toBe(true);
+
+    // Child login now requires PIN 4321
+    const failNoPin = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { userId: child.id },
+    });
+    expect(failNoPin.statusCode).toBe(401);
+
+    const okWithPin = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { userId: child.id, pin: '4321' },
+    });
+    expect(okWithPin.statusCode).toBe(200);
+
+    // Child removes their own PIN
+    const clearPin = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/users/me/profile',
+      headers: { cookie: childCookie },
+      payload: { pin: null },
+    });
+    expect(clearPin.statusCode).toBe(200);
+    expect(clearPin.json().user.hasPin).toBe(false);
+
+    // Parent updates own PIN via /users/me/profile, but cannot remove PIN
+    const parentLogin = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { userId: parent.id, pin: '1234' },
+    });
+    const parentCookie = extractSessionCookie(parentLogin.headers);
+
+    const parentPinChange = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/users/me/profile',
+      headers: { cookie: parentCookie },
+      payload: { pin: '5678', nickname: 'הבוס' },
+    });
+    expect(parentPinChange.statusCode).toBe(200);
+    expect(parentPinChange.json().user.nickname).toBe('הבוס');
+
+    const parentRemovePin = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/users/me/profile',
+      headers: { cookie: parentCookie },
+      payload: { pin: null },
+    });
+    expect(parentRemovePin.statusCode).toBe(400);
+  });
+
+  it('supports DELETE /api/v1/admin/users/:id for parents to remove seeded children while blocking children and self-delete', async () => {
+    const lobby = (await app.inject({ method: 'GET', url: '/api/v1/lobby' })).json();
+    const parent = lobby.profiles.find((p: { role: string }) => p.role === 'PARENT');
+    const [child1, child2] = lobby.profiles.filter((p: { role: string }) => p.role === 'CHILD');
+
+    const childCookie = extractSessionCookie(
+      (await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { userId: child1.id } })).headers,
+    );
+    const parentCookie = extractSessionCookie(
+      (await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { userId: parent.id, pin: '1234' } })).headers,
+    );
+
+    // Child cannot delete a user -> 403
+    const childAttempt = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/admin/users/${child2.id}`,
+      headers: { cookie: childCookie },
+    });
+    expect(childAttempt.statusCode).toBe(403);
+
+    // Parent cannot delete themselves -> 400
+    const selfAttempt = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/admin/users/${parent.id}`,
+      headers: { cookie: parentCookie },
+    });
+    expect(selfAttempt.statusCode).toBe(400);
+
+    // Parent deletes both seeded children (Noa and Yuval)
+    const del1 = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/admin/users/${child1.id}`,
+      headers: { cookie: parentCookie },
+    });
+    expect(del1.statusCode).toBe(200);
+    expect(del1.json()).toEqual({ ok: true });
+
+    const del2 = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/admin/users/${child2.id}`,
+      headers: { cookie: parentCookie },
+    });
+    expect(del2.statusCode).toBe(200);
+
+    const lobbyAfter = (await app.inject({ method: 'GET', url: '/api/v1/lobby' })).json();
+    expect(lobbyAfter.profiles.some((p: { id: number }) => p.id === child1.id || p.id === child2.id)).toBe(false);
+  });
+
   it('enforces zero banned physical horizontal directional classes across packages/web/src', () => {
     const webSrcDir = fileURLToPath(new URL('../../../web/src', import.meta.url));
     const bannedPattern = /\b(pl-|pr-|ml-|mr-|left-|right-|text-left|text-right)/;

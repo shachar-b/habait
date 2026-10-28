@@ -9,6 +9,7 @@ export const HEBREW_COPY = {
     myDay: 'היום שלי',
     pool: 'קופת המשימות',
     history: 'היסטוריה',
+    myProfile: 'הפרופיל שלי',
     admin: 'ניהול הבית',
   },
 

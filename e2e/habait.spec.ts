@@ -340,9 +340,76 @@ test.describe('habait E2E Suite (Flows 1–5)', () => {
     await expect(page.getByTestId('history-view')).toBeVisible();
     await assertIphoneLayout('History Tab');
 
-    // 6. Parent Admin tab on iPhone
+    // 6. Personal Profile tab on iPhone
+    await page.getByTestId('tab-myProfile').click();
+    await expect(page.getByTestId('profile-settings-view')).toBeVisible();
+    await assertIphoneLayout('Personal Profile Tab');
+
+    // 7. Parent Admin tab on iPhone
     await page.getByTestId('tab-admin').click();
     await expect(page.getByTestId('admin-view')).toBeVisible();
     await assertIphoneLayout('Admin Tab');
+  });
+
+  test('Flow 7 (Personal Profile & Family Management): child sets nickname, custom emoji & PIN; parent edits family & deletes default Yuval', async ({
+    page,
+  }) => {
+    await page.goto(BASE_URL);
+
+    // 1. Child (Noa, id=3) logs in without PIN and opens `👤 הפרופיל שלי`
+    await page.getByTestId('profile-card-3').click();
+    await page.getByTestId('tab-myProfile').click();
+    await expect(page.getByTestId('profile-settings-view')).toBeVisible();
+
+    // Official name is read-only
+    await expect(page.getByTestId('profile-official-name-input')).toBeDisabled();
+
+    // Child sets nickname, custom emoji from keyboard (verifying non-emoji error first), and background color
+    await page.getByTestId('profile-nickname-input').fill('נועה האלופה ✨');
+    await page.getByTestId('profile-custom-emoji-input').fill('א');
+    await expect(page.getByTestId('profile-error')).toBeVisible();
+    await page.getByTestId('profile-custom-emoji-input').fill('🧑‍🚀');
+    await expect(page.getByTestId('profile-error')).toBeHidden();
+    await page.getByTestId('profile-bg-swatch-bg-violet-200').click();
+    await expect(page.getByTestId('profile-preview-title')).toHaveText('נועה האלופה ✨');
+    await expect(page.getByTestId('profile-preview-avatar')).toHaveText('🧑‍🚀');
+    await page.getByTestId('profile-save-identity-btn').click();
+    await expect(page.getByTestId('profile-feedback')).toBeVisible();
+    await expect(page.getByTestId('workspace-greeting')).toContainText('שלום, נועה האלופה ✨');
+
+    // Child sets a personal 4-digit PIN (5678)
+    await page.getByTestId('profile-new-pin-input').fill('5678');
+    await page.getByTestId('profile-save-pin-btn').click();
+    await expect(page.getByTestId('profile-pin-status-badge')).toContainText('מוגן בקוד סודי');
+
+    // Switch back to Lobby -> Noa's card now shows nickname + official name subtitle and requires PIN 5678
+    await page.getByTestId('switch-user-btn').click();
+    await expect(page.getByTestId('profile-card-3')).toContainText('נועה האלופה ✨');
+    await expect(page.getByTestId('profile-official-name-3')).toContainText('נוֹעָה');
+    await page.getByTestId('profile-card-3').click();
+    await expect(page.getByTestId('pin-modal')).toBeVisible();
+    await page.getByTestId('pin-cancel').click();
+
+    // 2. Parent (Ima, id=1) logs in with PIN 1234 and opens `⚙️ ניהול הבית`
+    await page.getByTestId('profile-card-1').click();
+    for (const d of ['1', '2', '3', '4']) {
+      await page.getByTestId(`pin-key-${d}`).click();
+    }
+    await page.getByTestId('tab-admin').click();
+
+    // Parent deletes default Yuval (id=4)
+    await page.getByTestId('admin-delete-user-btn-4').click();
+    await expect(page.getByTestId('admin-delete-confirm-box-4')).toBeVisible();
+    await page.getByTestId('admin-confirm-delete-user-4').click();
+    await expect(page.getByTestId('admin-user-row-4')).toBeHidden();
+
+    // Check History view: Noa shows official name + nickname in parentheses, Yuval is gone
+    await page.getByTestId('tab-history').click();
+    await expect(page.getByTestId('history-user-card-3')).toContainText('נועה האלופה ✨');
+    await expect(page.getByTestId('history-user-card-4')).toBeHidden();
+
+    // Return to Lobby and confirm Yuval is completely gone
+    await page.getByTestId('switch-user-btn').click();
+    await expect(page.getByTestId('profile-card-4')).toBeHidden();
   });
 });

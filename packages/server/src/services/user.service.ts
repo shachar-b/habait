@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { and, asc, eq, gt, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, ne, or, sql } from 'drizzle-orm';
 import {
   DEFAULT_APP_TITLE,
   PinSchema,
@@ -9,6 +9,7 @@ import {
   type LobbyProfile,
   type LobbyResponse,
   type LoginRequest,
+  type UpdateOwnProfileRequest,
   type UpdateSettingsRequest,
   type UpdateUserRequest,
   type User,
@@ -109,10 +110,17 @@ export function resolveSessionActor(
 
 type UserRow = typeof schema.users.$inferSelect;
 
+function normalizeNickname(raw: string | null | undefined): string | null {
+  if (raw === undefined || raw === null) return null;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export function toUserDto(row: UserRow): User {
   return {
     id: row.id,
     name: row.name,
+    nickname: row.nickname ?? null,
     avatarEmoji: row.avatarEmoji,
     avatarBgColor: row.avatarBgColor,
     role: row.role,
@@ -156,6 +164,7 @@ export function createUser(db: Db, input: CreateUserRequest, now: number = Date.
     .insert(schema.users)
     .values({
       name: input.name.trim(),
+      nickname: normalizeNickname(input.nickname),
       avatarEmoji: input.avatarEmoji.trim(),
       avatarBgColor: input.avatarBgColor.trim(),
       role: input.role,
@@ -174,6 +183,24 @@ export function updateUser(db: Db, userId: number, input: UpdateUserRequest): Us
   if (!existing) throw new DomainError('NOT_FOUND', `User ${userId} not found`);
 
   const nextRole = input.role ?? existing.role;
+  const nextIsActive = input.isActive ?? existing.isActive;
+  if (existing.role === 'PARENT' && existing.isActive && (nextRole !== 'PARENT' || !nextIsActive)) {
+    const remainingParents = db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(
+        and(
+          eq(schema.users.role, 'PARENT'),
+          eq(schema.users.isActive, true),
+          ne(schema.users.id, userId),
+        ),
+      )
+      .all();
+    if (remainingParents.length < 1) {
+      throw new DomainValidationError('חייב להישאר לפחות הורה אחד בבית');
+    }
+  }
+
   let nextPinHash = existing.pinHash;
   if (input.pin !== undefined) {
     nextPinHash = input.pin === null ? null : hashPin(input.pin);
@@ -186,6 +213,7 @@ export function updateUser(db: Db, userId: number, input: UpdateUserRequest): Us
     .update(schema.users)
     .set({
       name: input.name !== undefined ? input.name.trim() : existing.name,
+      nickname: input.nickname !== undefined ? normalizeNickname(input.nickname) : existing.nickname,
       avatarEmoji: input.avatarEmoji !== undefined ? input.avatarEmoji.trim() : existing.avatarEmoji,
       avatarBgColor:
         input.avatarBgColor !== undefined ? input.avatarBgColor.trim() : existing.avatarBgColor,
@@ -198,7 +226,167 @@ export function updateUser(db: Db, userId: number, input: UpdateUserRequest): Us
     .returning()
     .get();
 
+  if (input.pin !== undefined) {
+    pinFailures.get(db)?.delete(userId);
+  }
   return toUserDto(updated);
+}
+
+export function updateOwnProfile(
+  db: Db,
+  userId: number,
+  input: UpdateOwnProfileRequest,
+): User {
+  const existing = db.select().from(schema.users).where(eq(schema.users.id, userId)).get();
+  if (!existing || !existing.isActive) {
+    throw new DomainError('NOT_FOUND', `User ${userId} not found`);
+  }
+
+  let nextPinHash = existing.pinHash;
+  if (input.pin !== undefined) {
+    nextPinHash = input.pin === null ? null : hashPin(input.pin);
+  }
+  if (existing.role === 'PARENT' && !nextPinHash) {
+    throw new DomainValidationError('PARENT profile must always have a PIN');
+  }
+
+  const updated = db
+    .update(schema.users)
+    .set({
+      nickname: input.nickname !== undefined ? normalizeNickname(input.nickname) : existing.nickname,
+      avatarEmoji: input.avatarEmoji !== undefined ? input.avatarEmoji.trim() : existing.avatarEmoji,
+      avatarBgColor:
+        input.avatarBgColor !== undefined ? input.avatarBgColor.trim() : existing.avatarBgColor,
+      pinHash: nextPinHash,
+    })
+    .where(eq(schema.users.id, userId))
+    .returning()
+    .get();
+
+  if (input.pin !== undefined) {
+    pinFailures.get(db)?.delete(userId);
+  }
+  return toUserDto(updated);
+}
+
+export function deleteUser(db: Db, targetUserId: number, actorUserId: number): void {
+  const target = db.select().from(schema.users).where(eq(schema.users.id, targetUserId)).get();
+  if (!target) {
+    throw new DomainError('NOT_FOUND', `User ${targetUserId} not found`);
+  }
+  if (targetUserId === actorUserId) {
+    throw new DomainValidationError('לא ניתן למחוק את הפרופיל שמחובר כרגע');
+  }
+
+  if (target.role === 'PARENT') {
+    const otherActiveParents = db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(
+        and(
+          eq(schema.users.role, 'PARENT'),
+          eq(schema.users.isActive, true),
+          ne(schema.users.id, targetUserId),
+        ),
+      )
+      .all();
+    if (otherActiveParents.length < 1) {
+      throw new DomainValidationError('חייב להישאר לפחות הורה אחד בבית');
+    }
+  }
+
+  db.transaction((tx) => {
+    // 1. Release any active pool task claims held by the deleted user
+    tx.update(schema.poolTasks)
+      .set({
+        state: 'AVAILABLE',
+        claimedByUserId: null,
+        claimedAt: null,
+        claimExpiresAt: null,
+      })
+      .where(eq(schema.poolTasks.claimedByUserId, targetUserId))
+      .run();
+
+    // 2. Reassign creator FKs on shared pool tasks and tasks assigned to OTHER users
+    tx.update(schema.poolTasks)
+      .set({ createdById: actorUserId })
+      .where(eq(schema.poolTasks.createdById, targetUserId))
+      .run();
+
+    tx.update(schema.routineTemplates)
+      .set({ createdBy: actorUserId })
+      .where(
+        and(
+          eq(schema.routineTemplates.createdBy, targetUserId),
+          ne(schema.routineTemplates.assigneeId, targetUserId),
+        ),
+      )
+      .run();
+
+    tx.update(schema.oneOffTasks)
+      .set({ createdById: actorUserId })
+      .where(
+        and(
+          eq(schema.oneOffTasks.createdById, targetUserId),
+          ne(schema.oneOffTasks.assigneeId, targetUserId),
+        ),
+      )
+      .run();
+
+    tx.update(schema.appSettings)
+      .set({ announcementUpdatedBy: null })
+      .where(eq(schema.appSettings.announcementUpdatedBy, targetUserId))
+      .run();
+
+    // 3. Delete routine_daily_logs before routine_templates (routineId FK has no cascade)
+    const userRoutineIds = tx
+      .select({ id: schema.routineTemplates.id })
+      .from(schema.routineTemplates)
+      .where(eq(schema.routineTemplates.assigneeId, targetUserId))
+      .all()
+      .map((r) => r.id);
+
+    if (userRoutineIds.length > 0) {
+      tx.delete(schema.routineDailyLogs)
+        .where(
+          or(
+            eq(schema.routineDailyLogs.assigneeId, targetUserId),
+            inArray(schema.routineDailyLogs.routineId, userRoutineIds),
+          ),
+        )
+        .run();
+    } else {
+      tx.delete(schema.routineDailyLogs)
+        .where(eq(schema.routineDailyLogs.assigneeId, targetUserId))
+        .run();
+    }
+
+    // 4. Delete user-specific tasks, executions, peer requests, and star transactions
+    tx.delete(schema.routineTemplates)
+      .where(eq(schema.routineTemplates.assigneeId, targetUserId))
+      .run();
+    tx.delete(schema.oneOffTasks)
+      .where(eq(schema.oneOffTasks.assigneeId, targetUserId))
+      .run();
+    tx.delete(schema.poolTaskExecutions)
+      .where(eq(schema.poolTaskExecutions.userId, targetUserId))
+      .run();
+    tx.delete(schema.peerRequests)
+      .where(
+        or(
+          eq(schema.peerRequests.requesterId, targetUserId),
+          eq(schema.peerRequests.recipientId, targetUserId),
+        ),
+      )
+      .run();
+    tx.delete(schema.starTransactions)
+      .where(eq(schema.starTransactions.userId, targetUserId))
+      .run();
+
+    // 5. Hard-delete the user row
+    tx.delete(schema.users).where(eq(schema.users.id, targetUserId)).run();
+  });
+  pinFailures.get(db)?.delete(targetUserId);
 }
 
 const MAX_PIN_FAILURES = 5;
@@ -385,6 +573,7 @@ export function getLobbyData(db: Db, now: number = Date.now()): LobbyResponse {
     return {
       id: u.id,
       name: u.name,
+      nickname: u.nickname ?? null,
       avatarEmoji: u.avatarEmoji,
       avatarBgColor: u.avatarBgColor,
       role: u.role,

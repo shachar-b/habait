@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  getDisplayName,
   HEBREW_COPY,
   TIME_WINDOWS,
   type AppSettings,
@@ -13,8 +14,9 @@ import {
 import { api, ClientApiError } from '../api.js';
 import { AdminView } from './AdminView.js';
 import { HistoryView } from './HistoryView.js';
+import { ProfileSettingsView } from './ProfileSettingsView.js';
 
-type WorkspaceTab = 'myDay' | 'pool' | 'history' | 'admin';
+type WorkspaceTab = 'myDay' | 'pool' | 'history' | 'myProfile' | 'admin';
 
 type WorkspaceViewProps = {
   userId: number;
@@ -206,9 +208,10 @@ export function WorkspaceView({
           </div>
           <div>
             <h1 className="text-2xl font-bold text-stone-900 sm:text-3xl" data-testid="workspace-greeting">
-              {HEBREW_COPY.greeting(user.name)}
+              {HEBREW_COPY.greeting(getDisplayName(user))}
             </h1>
             <p className="text-sm font-medium text-stone-500">
+              {user.nickname ? `${user.name} · ` : ''}
               {HEBREW_COPY.roles[user.role]} · {HEBREW_COPY.timeWindows[serverTime.timeWindow]}
             </p>
           </div>
@@ -238,14 +241,14 @@ export function WorkspaceView({
 
       {/* Navigation Pill Bar */}
       <nav
-        className="mb-6 grid grid-cols-3 gap-2 rounded-3xl border border-stone-200 bg-white p-2 shadow-xs sm:flex sm:items-center"
+        className="mb-6 grid grid-cols-2 gap-2 rounded-3xl border border-stone-200 bg-white p-2 shadow-xs sm:flex sm:flex-wrap sm:items-center"
         aria-label="ניווט ראשי"
       >
         <button
           type="button"
           onClick={() => setActiveTab('myDay')}
           data-testid="tab-myDay"
-          className={`min-h-12 flex-1 rounded-2xl px-2 py-2.5 text-center text-sm font-bold sm:px-4 sm:text-base ${
+          className={`min-h-12 min-w-12 flex-1 rounded-2xl px-2 py-2.5 text-center text-sm font-bold sm:px-4 sm:text-base ${
             activeTab === 'myDay'
               ? 'bg-stone-900 text-white shadow-xs'
               : 'text-stone-700'
@@ -257,7 +260,7 @@ export function WorkspaceView({
           type="button"
           onClick={() => setActiveTab('pool')}
           data-testid="tab-pool"
-          className={`min-h-12 flex-1 rounded-2xl px-2 py-2.5 text-center text-sm font-bold sm:px-4 sm:text-base ${
+          className={`min-h-12 min-w-12 flex-1 rounded-2xl px-2 py-2.5 text-center text-sm font-bold sm:px-4 sm:text-base ${
             activeTab === 'pool'
               ? 'bg-stone-900 text-white shadow-xs'
               : 'text-stone-700'
@@ -269,7 +272,7 @@ export function WorkspaceView({
           type="button"
           onClick={() => setActiveTab('history')}
           data-testid="tab-history"
-          className={`min-h-12 flex-1 rounded-2xl px-2 py-2.5 text-center text-sm font-bold sm:px-4 sm:text-base ${
+          className={`min-h-12 min-w-12 flex-1 rounded-2xl px-2 py-2.5 text-center text-sm font-bold sm:px-4 sm:text-base ${
             activeTab === 'history'
               ? 'bg-stone-900 text-white shadow-xs'
               : 'text-stone-700'
@@ -277,12 +280,24 @@ export function WorkspaceView({
         >
           📅 {HEBREW_COPY.nav.history}
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('myProfile')}
+          data-testid="tab-myProfile"
+          className={`min-h-12 min-w-12 flex-1 rounded-2xl px-2 py-2.5 text-center text-sm font-bold sm:px-4 sm:text-base ${
+            activeTab === 'myProfile'
+              ? 'bg-stone-900 text-white shadow-xs'
+              : 'text-stone-700'
+          }`}
+        >
+          👤 {HEBREW_COPY.nav.myProfile}
+        </button>
         {isParent && (
           <button
             type="button"
             onClick={() => setActiveTab('admin')}
             data-testid="tab-admin"
-            className={`col-span-3 min-h-12 flex-1 rounded-2xl px-4 py-2.5 text-base font-bold sm:col-span-1 ${
+            className={`col-span-2 min-h-12 min-w-12 flex-1 rounded-2xl px-4 py-2.5 text-base font-bold sm:col-span-1 ${
               activeTab === 'admin'
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'bg-amber-50 text-amber-950'
@@ -778,9 +793,22 @@ export function WorkspaceView({
         />
       )}
 
-      {/* TAB 4: ניהול הבית (Parents only) */}
+      {/* TAB 4: הפרופיל שלי (Personal Profile for any user) */}
+      {activeTab === 'myProfile' && (
+        <ProfileSettingsView
+          user={user}
+          totalStars={dashboard.totalStars}
+          onUpdated={() => {
+            void refreshWorkspace();
+            onGlobalRefresh();
+          }}
+        />
+      )}
+
+      {/* TAB 5: ניהול הבית (Parents only) */}
       {activeTab === 'admin' && isParent && (
         <AdminView
+          currentUserId={user.id}
           appSettings={appSettings}
           onChanged={() => {
             void refreshWorkspace();

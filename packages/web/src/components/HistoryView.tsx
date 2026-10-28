@@ -132,7 +132,14 @@ export function HistoryView({ initialDate, isParent = false, onRevertChange }: H
                       {entry.user.avatarEmoji}
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-stone-900">{entry.user.name}</h3>
+                      <h3 className="text-xl font-bold text-stone-900">
+                        {entry.user.name}
+                        {entry.user.nickname && (
+                          <span className="ms-1.5 text-sm font-medium text-stone-500">
+                            (&ldquo;{entry.user.nickname}&rdquo;)
+                          </span>
+                        )}
+                      </h3>
                       <p className="text-xs font-medium text-stone-500">
                         יומי: ⭐ {entry.starsEarned.daily} · שבועי: ⭐ {entry.starsEarned.weekly} · חודשי: ⭐{' '}
                         {entry.starsEarned.monthly} · שנתי: ⭐ {entry.starsEarned.yearly}

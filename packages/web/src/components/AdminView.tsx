@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  EmojiSchema,
   HEBREW_COPY,
   TIME_WINDOWS,
   type AppSettings,
@@ -13,8 +14,14 @@ import {
   type UserRole,
 } from '@habait/shared';
 import { api, ClientApiError } from '../api.js';
+import {
+  BG_COLOR_SWATCHES,
+  extractLastGrapheme,
+  PRESET_AVATAR_EMOJIS,
+} from './ProfileSettingsView.js';
 
 type AdminViewProps = {
+  currentUserId: number;
   appSettings: AppSettings;
   onChanged: () => void;
 };
@@ -29,16 +36,9 @@ const DAY_LABELS: { day: DayOfWeek; label: string }[] = [
   { day: 6, label: 'ש׳' },
 ];
 
-const BG_COLOR_OPTIONS = [
-  'bg-emerald-200',
-  'bg-sky-200',
-  'bg-rose-200',
-  'bg-amber-200',
-  'bg-violet-200',
-  'bg-teal-200',
-] as const;
+const BG_COLOR_OPTIONS = BG_COLOR_SWATCHES.map((s) => s.token);
 
-export function AdminView({ appSettings, onChanged }: AdminViewProps) {
+export function AdminView({ currentUserId, appSettings, onChanged }: AdminViewProps) {
   const [poolTasks, setPoolTasks] = useState<PoolTask[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [routines, setRoutines] = useState<RoutineTemplate[]>([]);
@@ -73,10 +73,21 @@ export function AdminView({ appSettings, onChanged }: AdminViewProps) {
 
   // New User form
   const [newUserName, setNewUserName] = useState('');
+  const [newUserNickname, setNewUserNickname] = useState('');
   const [newUserEmoji, setNewUserEmoji] = useState('🦊');
   const [newUserBg, setNewUserBg] = useState<string>('bg-violet-200');
   const [newUserRole, setNewUserRole] = useState<UserRole>('CHILD');
   const [newUserPin, setNewUserPin] = useState('');
+
+  // Inline Edit / Delete User state
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editNickname, setEditNickname] = useState('');
+  const [editEmoji, setEditEmoji] = useState('');
+  const [editBg, setEditBg] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>('CHILD');
+  const [editPin, setEditPin] = useState('');
+  const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<number | null>(null);
 
   const flashFeedback = (msg: string) => {
     setFeedbackMsg(msg);
@@ -210,10 +221,12 @@ export function AdminView({ appSettings, onChanged }: AdminViewProps) {
     e.preventDefault();
     if (!newUserName.trim()) return;
     try {
+      const emojiToUse = extractLastGrapheme(newUserEmoji) || (newUserRole === 'PARENT' ? '🦸' : '🦄');
       if (newUserRole === 'PARENT') {
         await api.adminCreateUser({
           name: newUserName.trim(),
-          avatarEmoji: newUserEmoji.trim() || '🦸',
+          nickname: newUserNickname.trim() || null,
+          avatarEmoji: emojiToUse,
           avatarBgColor: newUserBg,
           role: 'PARENT',
           pin: newUserPin,
@@ -221,13 +234,15 @@ export function AdminView({ appSettings, onChanged }: AdminViewProps) {
       } else {
         await api.adminCreateUser({
           name: newUserName.trim(),
-          avatarEmoji: newUserEmoji.trim() || '🦄',
+          nickname: newUserNickname.trim() || null,
+          avatarEmoji: emojiToUse,
           avatarBgColor: newUserBg,
           role: 'CHILD',
           pin: newUserPin.trim() ? newUserPin.trim() : null,
         });
       }
       setNewUserName('');
+      setNewUserNickname('');
       setNewUserPin('');
       await loadAll();
       onChanged();
@@ -237,11 +252,73 @@ export function AdminView({ appSettings, onChanged }: AdminViewProps) {
     }
   };
 
+  const startEditingUser = (u: User) => {
+    setEditingUserId(u.id);
+    setConfirmDeleteUserId(null);
+    setEditName(u.name);
+    setEditNickname(u.nickname ?? '');
+    setEditEmoji(u.avatarEmoji);
+    setEditBg(u.avatarBgColor);
+    setEditRole(u.role);
+    setEditPin('');
+  };
+
+  const handleSaveUserEdit = async (e: React.FormEvent, u: User) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    const cleanedEmoji = extractLastGrapheme(editEmoji) || u.avatarEmoji;
+    if (!EmojiSchema.safeParse(cleanedEmoji).success) {
+      setErrorMsg('נא לבחור אימוג׳י תקין אחד בלבד');
+      return;
+    }
+    if (editPin.trim() && !/^\d{4}$/.test(editPin.trim())) {
+      setErrorMsg('הקוד הסודי חייב להכיל בדיוק 4 ספרות');
+      return;
+    }
+    try {
+      await api.adminUpdateUser(u.id, {
+        name: editName.trim() || u.name,
+        nickname: editNickname.trim() ? editNickname.trim() : null,
+        avatarEmoji: cleanedEmoji,
+        avatarBgColor: editBg,
+        role: editRole,
+        ...(editPin.trim() ? { pin: editPin.trim() } : {}),
+      });
+      setEditingUserId(null);
+      setEditPin('');
+      await loadAll();
+      onChanged();
+      flashFeedback('פרטי בן/בת המשפחה עודכנו');
+    } catch (err) {
+      setErrorMsg(err instanceof ClientApiError ? err.message : 'שגיאה בעדכון פרופיל');
+    }
+  };
+
   const handleRemoveChildPin = async (userId: number) => {
-    await api.adminUpdateUser(userId, { pin: null });
-    await loadAll();
-    onChanged();
-    flashFeedback('קוד סודי הוסר מהפרופיל');
+    setErrorMsg(null);
+    try {
+      await api.adminUpdateUser(userId, { pin: null });
+      setEditPin('');
+      await loadAll();
+      onChanged();
+      flashFeedback('קוד סודי הוסר מהפרופיל');
+    } catch (err) {
+      setErrorMsg(err instanceof ClientApiError ? err.message : 'שגיאה בהסרת קוד סודי');
+    }
+  };
+
+  const handleConfirmDeleteUser = async (userId: number) => {
+    setErrorMsg(null);
+    try {
+      await api.adminDeleteUser(userId);
+      setConfirmDeleteUserId(null);
+      if (editingUserId === userId) setEditingUserId(null);
+      await loadAll();
+      onChanged();
+      flashFeedback('הפרופיל וכל משימותיו נמחקו לצמיתות');
+    } catch (err) {
+      setErrorMsg(err instanceof ClientApiError ? err.message : 'שגיאה במחיקת הפרופיל');
+    }
   };
 
   return (
@@ -602,37 +679,254 @@ export function AdminView({ appSettings, onChanged }: AdminViewProps) {
 
       {/* 5. Profile & PIN Management */}
       <section className="rounded-3xl border border-stone-200 bg-white p-6 shadow-xs">
-        <h2 className="mb-4 text-2xl font-bold text-stone-900">בני המשפחה וקודים סודיים</h2>
-        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {users.map((u) => (
-            <div
-              key={u.id}
-              className="flex items-center justify-between rounded-2xl border border-stone-200 bg-[#FAF6EE] p-4"
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-2xl text-3xl ${u.avatarBgColor}`}
-                >
-                  {u.avatarEmoji}
+        <div className="mb-4">
+          <h2 className="text-2xl font-bold text-stone-900">בני המשפחה וקודים סודיים</h2>
+          <p className="text-sm text-stone-600">
+            עריכת שמות, כינויים, אימוג׳ים וקודים סודיים, או מחיקת פרופילים מיותרים
+          </p>
+        </div>
+
+        <div className="mb-6 space-y-3">
+          {users.map((u) => {
+            const isEditing = editingUserId === u.id;
+            const isConfirmingDelete = confirmDeleteUserId === u.id;
+            const isSelf = u.id === currentUserId;
+
+            return (
+              <div
+                key={u.id}
+                data-testid={`admin-user-row-${u.id}`}
+                className={`rounded-2xl border p-4 ${
+                  isEditing
+                    ? 'border-amber-400 bg-amber-50/50'
+                    : 'border-stone-200 bg-[#FAF6EE]'
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-12 w-12 items-center justify-center rounded-2xl text-3xl ${u.avatarBgColor}`}
+                    >
+                      {u.avatarEmoji}
+                    </div>
+                    <div>
+                      <p className="font-bold text-stone-900">
+                        {u.name}
+                        {u.nickname ? (
+                          <span className="ms-1.5 text-sm font-medium text-stone-600">
+                            (&quot;{u.nickname}&quot;)
+                          </span>
+                        ) : null}
+                      </p>
+                      <p className="text-xs text-stone-600">
+                        {HEBREW_COPY.roles[u.role]} · {u.hasPin ? '🔒 מוגן בקוד' : 'ללא קוד'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => (isEditing ? setEditingUserId(null) : startEditingUser(u))}
+                      data-testid={`admin-edit-user-btn-${u.id}`}
+                      className="min-h-12 min-w-12 rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-bold text-stone-800"
+                    >
+                      {isEditing ? 'סגור עריכה' : '✏️ עריכה וקוד'}
+                    </button>
+
+                    {!isSelf && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingUserId(null);
+                          setConfirmDeleteUserId(isConfirmingDelete ? null : u.id);
+                        }}
+                        data-testid={`admin-delete-user-btn-${u.id}`}
+                        className="min-h-12 min-w-12 rounded-xl border border-rose-300 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-800"
+                      >
+                        🗑️ מחיקה
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold text-stone-900">{u.name}</p>
-                  <p className="text-xs text-stone-600">
-                    {HEBREW_COPY.roles[u.role]} · {u.hasPin ? '🔒 מוגן בקוד' : 'ללא קוד'}
-                  </p>
-                </div>
+
+                {/* Inline Delete Confirmation */}
+                {isConfirmingDelete && (
+                  <div
+                    data-testid={`admin-delete-confirm-box-${u.id}`}
+                    className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-300 bg-rose-100/80 p-3.5"
+                  >
+                    <p className="text-sm font-bold text-rose-950">
+                      בטוחים שברצונכם למחוק את {u.name} וכל המשימות וההיסטוריה שלו/ה?
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleConfirmDeleteUser(u.id)}
+                        data-testid={`admin-confirm-delete-user-${u.id}`}
+                        className="min-h-12 min-w-12 rounded-xl bg-rose-700 px-4 py-2 text-xs font-bold text-white"
+                      >
+                        כן, מחק סופית
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteUserId(null)}
+                        className="min-h-12 min-w-12 rounded-xl border border-stone-300 bg-white px-4 py-2 text-xs font-bold text-stone-700"
+                      >
+                        ביטול
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Inline Edit Form */}
+                {isEditing && (
+                  <form
+                    onSubmit={(e) => void handleSaveUserEdit(e, u)}
+                    data-testid={`admin-edit-user-form-${u.id}`}
+                    className="mt-4 space-y-4 border-t border-stone-200 pt-4"
+                  >
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                      <div>
+                        <label className="mb-1 block text-xs font-bold text-stone-600">
+                          שם רשמי
+                        </label>
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          data-testid={`admin-user-name-input-${u.id}`}
+                          className="min-h-12 w-full rounded-2xl border border-stone-300 bg-white px-3.5 font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-bold text-stone-600">
+                          כינוי אישי
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="ללא כינוי"
+                          value={editNickname}
+                          onChange={(e) => setEditNickname(e.target.value)}
+                          data-testid={`admin-user-nickname-input-${u.id}`}
+                          className="min-h-12 w-full rounded-2xl border border-stone-300 bg-white px-3.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-bold text-stone-600">
+                          תפקיד בבית
+                        </label>
+                        <select
+                          value={editRole}
+                          onChange={(e) => setEditRole(e.target.value as UserRole)}
+                          disabled={u.id === currentUserId}
+                          data-testid={`admin-user-role-select-${u.id}`}
+                          className="min-h-12 w-full rounded-2xl border border-stone-300 bg-white px-3 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400"
+                        >
+                          <option value="CHILD">{HEBREW_COPY.roles.CHILD}</option>
+                          <option value="PARENT">{HEBREW_COPY.roles.PARENT}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-bold text-stone-600">
+                          קוד סודי חדש (4 ספרות)
+                        </label>
+                        <input
+                          type="password"
+                          inputMode="numeric"
+                          maxLength={4}
+                          placeholder={u.hasPin ? 'הזן להחלפת קוד...' : 'הגדר קוד 4 ספרות...'}
+                          value={editPin}
+                          onChange={(e) => setEditPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          data-testid={`admin-user-pin-input-${u.id}`}
+                          className="min-h-12 w-full rounded-2xl border border-stone-300 bg-white px-3.5 text-center font-bold tracking-widest"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {PRESET_AVATAR_EMOJIS.slice(0, 8).map((em) => (
+                          <button
+                            key={em}
+                            type="button"
+                            onClick={() => setEditEmoji(em)}
+                            className={`flex min-h-12 min-w-12 items-center justify-center rounded-xl border text-xl ${
+                              editEmoji === em
+                                ? 'border-amber-500 bg-amber-100'
+                                : 'border-stone-200 bg-white'
+                            }`}
+                          >
+                            {em}
+                          </button>
+                        ))}
+                        <input
+                          type="text"
+                          aria-label="אימוג׳י מותאם אישית"
+                          value={editEmoji}
+                          onChange={(e) => {
+                            const last = extractLastGrapheme(e.target.value);
+                            if (last) setEditEmoji(last);
+                          }}
+                          data-testid={`admin-user-emoji-input-${u.id}`}
+                          className="min-h-12 w-16 rounded-xl border border-stone-300 bg-white text-center text-2xl"
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {BG_COLOR_SWATCHES.map((sw) => (
+                          <button
+                            key={sw.token}
+                            type="button"
+                            aria-label={sw.label}
+                            onClick={() => setEditBg(sw.token)}
+                            className={`flex min-h-12 min-w-12 items-center justify-center rounded-xl border-2 text-xs font-bold ${
+                              sw.token
+                            } ${
+                              editBg === sw.token ? 'border-stone-900' : 'border-stone-300'
+                            }`}
+                          >
+                            {editBg === sw.token ? '✓' : ''}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        {u.role === 'CHILD' && u.hasPin && (
+                          <button
+                            type="button"
+                            onClick={() => void handleRemoveChildPin(u.id)}
+                            data-testid={`admin-remove-pin-btn-${u.id}`}
+                            className="min-h-12 min-w-12 rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-bold text-stone-700"
+                          >
+                            הסר קוד סודי מהילד/ה
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingUserId(null)}
+                          className="min-h-12 min-w-12 rounded-xl border border-stone-300 bg-white px-4 py-2 text-xs font-bold text-stone-700"
+                        >
+                          ביטול
+                        </button>
+                        <button
+                          type="submit"
+                          data-testid={`admin-save-user-btn-${u.id}`}
+                          className="min-h-12 min-w-12 rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white"
+                        >
+                          ✓ שמור שינויים
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                )}
               </div>
-              {u.role === 'CHILD' && u.hasPin && (
-                <button
-                  type="button"
-                  onClick={() => void handleRemoveChildPin(u.id)}
-                  className="min-h-12 min-w-12 rounded-xl border border-stone-300 bg-white px-3 py-1 text-xs font-bold text-stone-700"
-                >
-                  הסר קוד
-                </button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <form
@@ -644,12 +938,26 @@ export function AdminView({ appSettings, onChanged }: AdminViewProps) {
             placeholder="שם בן/בת משפחה..."
             value={newUserName}
             onChange={(e) => setNewUserName(e.target.value)}
+            data-testid="admin-new-user-name"
+            className="min-h-12 rounded-2xl border border-stone-300 bg-[#FAF6EE] px-3.5"
+          />
+          <input
+            type="text"
+            placeholder="כינוי (רשות)..."
+            value={newUserNickname}
+            onChange={(e) => setNewUserNickname(e.target.value)}
+            data-testid="admin-new-user-nickname"
             className="min-h-12 rounded-2xl border border-stone-300 bg-[#FAF6EE] px-3.5"
           />
           <input
             type="text"
             value={newUserEmoji}
-            onChange={(e) => setNewUserEmoji(e.target.value)}
+            onChange={(e) => {
+              const last = extractLastGrapheme(e.target.value);
+              setNewUserEmoji(last);
+            }}
+            placeholder="אימוג׳י"
+            data-testid="admin-new-user-emoji"
             className="min-h-12 rounded-2xl border border-stone-300 bg-[#FAF6EE] px-3.5 text-center text-2xl"
           />
           <select
@@ -657,32 +965,35 @@ export function AdminView({ appSettings, onChanged }: AdminViewProps) {
             onChange={(e) => setNewUserBg(e.target.value)}
             className="min-h-12 rounded-2xl border border-stone-300 bg-[#FAF6EE] px-3"
           >
-            {BG_COLOR_OPTIONS.map((bg) => (
-              <option key={bg} value={bg}>
-                {bg}
+            {BG_COLOR_SWATCHES.map((sw) => (
+              <option key={sw.token} value={sw.token}>
+                {sw.label}
               </option>
             ))}
           </select>
-          <select
-            value={newUserRole}
-            onChange={(e) => setNewUserRole(e.target.value as UserRole)}
-            className="min-h-12 rounded-2xl border border-stone-300 bg-[#FAF6EE] px-3"
-          >
-            <option value="CHILD">{HEBREW_COPY.roles.CHILD}</option>
-            <option value="PARENT">{HEBREW_COPY.roles.PARENT}</option>
-          </select>
-          <input
-            type="password"
-            inputMode="numeric"
-            maxLength={4}
-            placeholder={newUserRole === 'PARENT' ? 'קוד 4 ספרות (חובה)' : 'קוד 4 ספרות (רשות)'}
-            value={newUserPin}
-            onChange={(e) => setNewUserPin(e.target.value)}
-            className="min-h-12 rounded-2xl border border-stone-300 bg-[#FAF6EE] px-3.5"
-          />
+          <div className="flex gap-2">
+            <select
+              value={newUserRole}
+              onChange={(e) => setNewUserRole(e.target.value as UserRole)}
+              className="min-h-12 flex-1 rounded-2xl border border-stone-300 bg-[#FAF6EE] px-2 text-sm"
+            >
+              <option value="CHILD">{HEBREW_COPY.roles.CHILD}</option>
+              <option value="PARENT">{HEBREW_COPY.roles.PARENT}</option>
+            </select>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              placeholder={newUserRole === 'PARENT' ? 'קוד (חובה)' : 'קוד (רשות)'}
+              value={newUserPin}
+              onChange={(e) => setNewUserPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              className="min-h-12 w-28 rounded-2xl border border-stone-300 bg-[#FAF6EE] px-2 text-center text-sm"
+            />
+          </div>
           <button
             type="submit"
-            className="min-h-12 rounded-2xl bg-stone-900 px-4 font-bold text-white"
+            data-testid="admin-create-user-btn"
+            className="min-h-12 min-w-12 rounded-2xl bg-stone-900 px-4 font-bold text-white"
           >
             + הוסף פרופיל
           </button>

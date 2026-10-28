@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  getDisplayName,
   HEBREW_COPY,
   TIME_ZONE,
   type LobbyProfile,
@@ -213,7 +214,17 @@ export function App() {
                 )}
               </div>
 
-              <h3 className="mt-4 text-2xl font-bold text-stone-900">{profile.name}</h3>
+              <h3 className="mt-4 text-2xl font-bold text-stone-900">
+                {getDisplayName(profile)}
+              </h3>
+              {profile.nickname && (
+                <span
+                  data-testid={`profile-official-name-${profile.id}`}
+                  className="mt-0.5 text-xs font-medium text-stone-500"
+                >
+                  ({profile.name})
+                </span>
+              )}
 
               {/* Star Pill */}
               <div

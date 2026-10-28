@@ -21,6 +21,7 @@ import {
   IdParamSchema,
   LoginRequestSchema,
   UpdateOneOffRequestSchema,
+  UpdateOwnProfileRequestSchema,
   UpdatePoolTaskRequestSchema,
   UpdateRoutineRequestSchema,
   UpdateSettingsRequestSchema,
@@ -63,11 +64,13 @@ import {
 import {
   authenticateUser,
   createUser,
+  deleteUser,
   getLobbyData,
   getUserById,
   listUsers,
   resolveSessionActor,
   updateAppSettings,
+  updateOwnProfile,
   updateUser,
 } from './services/user.service.js';
 
@@ -176,6 +179,15 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       return { user: null };
     }
   });
+
+  api.patch(
+    '/api/v1/users/me/profile',
+    { schema: { body: UpdateOwnProfileRequestSchema } },
+    async (req) => {
+      const actor = requireAuth(req);
+      return { user: updateOwnProfile(db, actor.userId, req.body) };
+    },
+  );
 
   // ---------------------------------------------------------------------------
   // User Workspace Dashboard (`היום שלי`)
@@ -371,6 +383,16 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     async (req) => {
       requireParent(req);
       return { user: updateUser(db, req.params.id, req.body) };
+    },
+  );
+
+  api.delete(
+    '/api/v1/admin/users/:id',
+    { schema: { params: IdParamSchema } },
+    async (req) => {
+      const parent = requireParent(req);
+      deleteUser(db, req.params.id, parent.userId);
+      return { ok: true };
     },
   );
 
